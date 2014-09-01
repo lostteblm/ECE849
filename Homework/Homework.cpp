@@ -101,7 +101,7 @@ int main(int argc, const char* argv[], const char* envp[])
 				string extension2 = filename2.substr(startp+1);
 				if ("jpeg" == extension2 || "jpg" == extension2 || "JPG" == extension2 || "JPEG" == extension2)
 				{
-					cout << "ERROR: The extension of location2 cannot be JPEG, please type another extension" << endl;
+					cout << "ERROR: The extension of filename2 cannot be JPEG, please type another extension" << endl;
 				}
 				else
 				{
@@ -173,7 +173,7 @@ int main(int argc, const char* argv[], const char* envp[])
 					}
 					else
 					{
-						cout << "The sizes of file 3 and file 1 are different,please select another file" << endl;
+						cout << "The sizes of filename3 and filename1 are different,please select another file" << endl;
 						filename3 = "";
 						getline(cin, filename3);
 						string location3 = location + filename3;
@@ -193,6 +193,7 @@ int main(int argc, const char* argv[], const char* envp[])
 			//Failed to input three file names
 			cout << "Please press Ctrl+C to quit program and reinput three files" << endl;
 		}
+		cout << "Mask process finished, you can press Ctrl+C to quit the program" << endl;
 			EventLoop();
 		}
 

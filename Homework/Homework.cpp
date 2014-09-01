@@ -21,6 +21,8 @@ void SquareRegion(const ImgBgr& Img1,ImgGray& Img2)
 	int height = Img1.Height();
 	Img2.Reset(width, height);
 	
+
+	//Modify image that are larger than 100*100
 	if (width > 100 && height > 100)
 	{
 		for (ImgGray::Iterator p = Img2.Begin(); p != Img2.End(); p++)
@@ -34,8 +36,8 @@ void SquareRegion(const ImgBgr& Img1,ImgGray& Img2)
 				Img2(x, y) = 255;
 			}
 		}
-
 	}
+	//modify images that are small than 100*100
 	else
 	{
 		for (ImgGray::Iterator p = Img2.Begin(); p != Img2.End(); p++)
@@ -49,6 +51,8 @@ ImgBgr maskimage(const ImgGray& source,ImgBgr target)
 {
 	int count = 0;
 	ImgBgr::Iterator pmask = target.Begin();
+
+	//mask target image
 	for (ImgGray::ConstIterator p = source.Begin(); p != source.End(); p++)
 	{
 
@@ -58,18 +62,6 @@ ImgBgr maskimage(const ImgGray& source,ImgBgr target)
 		}
 		count = count + 1;
 	}
-/*	for (int y = 0; y < source.Height();y++)
-	{
-		for (int x = 0; x < source.Width();x++)
-		if (0 == source(x,y))
-		{
-			maskfigure(x, y) =Bgr (0, 0, 0);
-		}
-		else
-		{
-			maskfigure(x, y) = target(x, y);
-		}
-	}*/
 	return target;
 }
 

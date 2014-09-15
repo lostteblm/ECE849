@@ -15,76 +15,24 @@ using namespace blepo;
 using namespace std;
 
 
-//Square the image function
-void SquareRegion(const ImgBgr& Img1,ImgGray& Img2)
-{
-	int width = Img1.Width();
-	int height = Img1.Height();
-	Img2.Reset(width, height);
-	
-
-	//Modify images that are larger than 100*100
-	if (width >= 100 && height >= 100)
-	{
-		for (ImgGray::Iterator p = Img2.Begin(); p != Img2.End(); p++)
-		{
-			*p = 0;
-		}
-		for (int y = height / 2 - 50; y < height / 2 + 50; y++)
-		{
-			for (int x = width / 2 - 50; x < width / 2 + 50; x++)
-			{
-				Img2(x, y) = 255;
-			}
-		}
-	}
-	//modify images that are smaller than 100*100
-	else
-	{
-		for (ImgGray::Iterator p = Img2.Begin(); p != Img2.End(); p++)
-		{
-			*p = 255;
-		}
-	}
-}
-
-
-//Mask image function
-ImgBgr maskimage(const ImgGray& source,ImgBgr target)
-{
-	int count = 0;
-	ImgBgr::Iterator pmask = target.Begin();
-
-	//mask target image
-	for (ImgGray::ConstIterator p = source.Begin(); p != source.End(); p++)
-	{
-
-		if (0 == *p)
-		{
-			*(pmask+count) = Bgr(0, 0, 0);
-		}
-		count = count + 1;
-	}
-	return target;
-}
 
 
 //Main function
 int main(int argc, const char* argv[], const char* envp[])
 {
-    // Initialize MFC and return if failure
-    HMODULE hModule = ::GetModuleHandle(NULL);
-    if (hModule == NULL || !AfxWinInit(hModule, NULL, ::GetCommandLine(), 0))
-    {
-        printf("Fatal Error: MFC initialization failed (hModule = %x)\n", hModule);
-        return 1;
-    }
+	// Initialize MFC and return if failure
+	HMODULE hModule = ::GetModuleHandle(NULL);
+	if (hModule == NULL || !AfxWinInit(hModule, NULL, ::GetCommandLine(), 0))
+	{
+		printf("Fatal Error: MFC initialization failed (hModule = %x)\n", hModule);
+		return 1;
+	}
 
 	try
 	{
 		//Initialization filenames
 		string location = "../../images/";
-		ImgBgr img(0, 0);
+		ImgGray img, threshold_hi, threshold_lo;
 
 		//check if three file names are correctly inputted
 		if (2 == argc)
@@ -114,6 +62,72 @@ int main(int argc, const char* argv[], const char* envp[])
 				getline(cin, filename);
 				location1 = location + filename;
 			}
+
+			threshold_hi.Reset(img.Width(), img.Height());
+			threshold_lo.Reset(img.Width(), img.Height());
+
+
+
+			int count = 0;
+			for (ImgGray::ConstIterator p = img.Begin(); p != img.End(); p++)
+			{
+				ImgGray::Iterator p_hi = threshold_hi.Begin();
+				if (*p<105)
+				{
+					*(p_hi+count) = 0;
+				}
+				else
+				{
+					*(p_hi + count) = 255;
+				}
+				count = count + 1;
+			}
+			
+			Erode3x3(threshold_hi, &threshold_hi);
+/*			for (int y = 0; y < threshold_hi.Height(); y++)
+			{
+				for (int x = 0; x < threshold_hi.Width(); x++)
+				{
+
+				}
+			}
+	*/		//Erode3x3(threshold_hi, &threshold_hi);
+
+
+			count = 0;
+			for (ImgGray::ConstIterator p = img.Begin(); p != img.End(); p++)
+			{
+				ImgGray::Iterator p_low = threshold_lo.Begin();
+				if (*p<70)
+				{
+					*(p_low + count) = 0;
+				}
+				else
+				{
+					*(p_low + count) = 255;
+				}
+				count = count + 1;
+			}
+			ImgGray doublethreshold(0, 0);
+			doublethreshold.Reset(img.Width(), img.Height());
+			for (ImgGray::Iterator p = doublethreshold.Begin(); p != doublethreshold.End(); p++)
+			{
+				*p = 0;	
+			}
+			FloodFill4(threshold_lo, 92, 66, 255, &doublethreshold);
+
+			Figure fig1,fig2,fig3,fig4;
+			fig1.Draw(img);
+			fig2.Draw(threshold_hi);
+			fig3.Draw(threshold_lo);
+			fig4.Draw(doublethreshold);
+
+
+
+
+
+
+
 		}
 		else
 		{
@@ -121,12 +135,13 @@ int main(int argc, const char* argv[], const char* envp[])
 			cout << "Please press Ctrl+C to quit program and reinput three files" << endl;
 		}
 		cout << "Mask process finished, you can press Ctrl+C to quit the program" << endl;
-			EventLoop();
-		}
+		EventLoop();
+	}
 
 	catch (const Exception& e)
 	{
 		e.Display();
 	}
-    return 0;
+	return 0;
 }
+

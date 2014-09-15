@@ -14,7 +14,74 @@
 using namespace blepo;
 using namespace std;
 
+void DoubleThresholding(const ImgGray& input, ImgGray* output)
+{
+	ImgGray  threshold_hi, threshold_lo;
+	int high = 150;
+	int low = 79;
+	threshold_hi.Reset(input.Width(), input.Height());
+	threshold_lo.Reset(input.Width(), input.Height());
 
+	int count = 0;
+	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++)
+	{
+		ImgGray::Iterator p_hi = threshold_hi.Begin();
+		if (*p<high)
+		{
+			*(p_hi + count) = 0;
+		}
+		else
+		{
+			*(p_hi + count) = 255;
+		}
+		count = count + 1;
+	}
+	Erode3x3(threshold_hi, &threshold_hi);
+
+	count = 0;
+	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++)
+	{
+		ImgGray::Iterator p_low = threshold_lo.Begin();
+		if (*p<low)
+		{
+			*(p_low + count) = 0;
+		}
+		else
+		{
+			*(p_low + count) = 255;
+		}
+		count = count + 1;
+	}
+
+	output->Reset(input.Width(), input.Height());
+	for (ImgGray::Iterator p = output->Begin(); p != output->End(); p++)
+	{
+		*p = 0;
+	}
+
+	for (int y = 0; y < threshold_lo.Height(); y++)
+	{
+		for (int x = 0; x < threshold_lo.Width(); x++)
+		{
+			if (255 == threshold_hi(x, y))
+				FloodFill4(threshold_lo, x, y, 255, output);
+		}
+	}
+
+	Erode3x3(*output, output);
+	Dilate3x3(*output, output);
+	Dilate3x3(*output, output);
+
+	Figure fig1("High threshold", 0, 400), fig2("Low threshold", 850, 400);
+	fig1.Draw(threshold_hi);
+	fig2.Draw(threshold_lo);
+}
+
+void ConnectedComponent(const ImgGray& input, ImgInt* output)
+{
+	output->Reset(input.Width(), input.Height());
+	ConnectedComponents4(input, output);
+}
 
 
 //Main function
@@ -32,14 +99,15 @@ int main(int argc, const char* argv[], const char* envp[])
 	{
 		//Initialization filenames
 		string location = "../../images/";
-		ImgGray img, threshold_hi, threshold_lo;
+		ImgGray origin, doublethreshold;
+		ImgInt label;
 
-		//check if three file names are correctly inputted
+		//check if the file name is correctly inputted
 		if (2 == argc)
 		{
-			//Load three file names
+			//Load the file name
 			string filename = argv[1];
-			cout << "Three files are: " << argv[1] << endl;
+			cout << "The file is: " << argv[1] << endl;
 
 
 			//Load first two file locations
@@ -51,82 +119,28 @@ int main(int argc, const char* argv[], const char* envp[])
 				if ((_access(location1.c_str(), 0)) != -1)
 				{
 					//Load the first image
-					Load(location1.c_str(), &img);
+					Load(location1.c_str(), &origin);
 				}
-				if (img.Height() > 0 && img.Width() > 0)
+				if (origin.Height() > 0 && origin.Width() > 0)
 				{
 					break;
 				}
-				cout << "ERROR: cannot open " << filename << ", please open another file" << endl;
+				cout << "ERROR: cannot open " << filename << ", please open another file (please just type file name)" << endl;
 				filename = "";
 				getline(cin, filename);
 				location1 = location + filename;
 			}
 
-			threshold_hi.Reset(img.Width(), img.Height());
-			threshold_lo.Reset(img.Width(), img.Height());
+			//Perform double thresholding
+			DoubleThresholding(origin, &doublethreshold);
 
-
-
-			int count = 0;
-			for (ImgGray::ConstIterator p = img.Begin(); p != img.End(); p++)
-			{
-				ImgGray::Iterator p_hi = threshold_hi.Begin();
-				if (*p<105)
-				{
-					*(p_hi+count) = 0;
-				}
-				else
-				{
-					*(p_hi + count) = 255;
-				}
-				count = count + 1;
-			}
+			Figure OriF("Original", 0, 0), DTF("Double threshold", 850, 0);
+			OriF.Draw(origin);
+			DTF.Draw(doublethreshold);
 			
-			Erode3x3(threshold_hi, &threshold_hi);
-/*			for (int y = 0; y < threshold_hi.Height(); y++)
-			{
-				for (int x = 0; x < threshold_hi.Width(); x++)
-				{
-
-				}
-			}
-	*/		//Erode3x3(threshold_hi, &threshold_hi);
-
-
-			count = 0;
-			for (ImgGray::ConstIterator p = img.Begin(); p != img.End(); p++)
-			{
-				ImgGray::Iterator p_low = threshold_lo.Begin();
-				if (*p<70)
-				{
-					*(p_low + count) = 0;
-				}
-				else
-				{
-					*(p_low + count) = 255;
-				}
-				count = count + 1;
-			}
-			ImgGray doublethreshold(0, 0);
-			doublethreshold.Reset(img.Width(), img.Height());
-			for (ImgGray::Iterator p = doublethreshold.Begin(); p != doublethreshold.End(); p++)
-			{
-				*p = 0;	
-			}
-			FloodFill4(threshold_lo, 92, 66, 255, &doublethreshold);
-
-			Figure fig1,fig2,fig3,fig4;
-			fig1.Draw(img);
-			fig2.Draw(threshold_hi);
-			fig3.Draw(threshold_lo);
-			fig4.Draw(doublethreshold);
-
-
-
-
-
-
+			ConnectedComponent(doublethreshold, &label);
+			Figure CCF("Connected Component using ", 0, 900);
+			CCF.Draw(label);
 
 		}
 		else

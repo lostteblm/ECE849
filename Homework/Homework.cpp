@@ -11,6 +11,7 @@
 #define new DEBUG_NEW
 #endif
 
+#define pi 3.1415926
 using namespace blepo;
 using namespace std;
 
@@ -18,7 +19,7 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 {
 	ImgGray  threshold_hi, threshold_lo;
 	int high = 150;
-	int low = 79;
+	int low = 85;
 	threshold_hi.Reset(input.Width(), input.Height());
 	threshold_lo.Reset(input.Width(), input.Height());
 
@@ -69,6 +70,8 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 	}
 
 	Erode3x3(*output, output);
+	//Dilate3x3(*output, output);
+	Erode3x3(*output, output);
 	Dilate3x3(*output, output);
 	Dilate3x3(*output, output);
 
@@ -77,12 +80,132 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 	fig2.Draw(threshold_lo);
 }
 
-void ConnectedComponent(const ImgGray& input, ImgInt* output)
+void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 {
-	output->Reset(input.Width(), input.Height());
-	ConnectedComponents4(input, output);
-}
+	ImgInt label;
+	
+	std::vector< ConnectedComponentProperties<ImgGray::Pixel>> reg;  		// pixel type must match input image type
+	ConnectedComponents4(component, &label, &reg);
+	Figure CCF("Connected Component", 0, 300);
+	CCF.Draw(label);
+	
+	ImgBinary calculation(component.Width(),component.Height());
 
+
+	for (int i = 1; i < reg.size(); i++)
+	{
+		cout << "The region properties of region " << i << " is listed below." << endl;
+
+		for (int y = 0; y < calculation.Height(); y++)
+		{
+			for (int x = 0; x < calculation.Width(); x++)
+			{
+				if (i == label(x, y))
+				{
+					calculation(x, y) = 1;
+				}
+				else
+				{
+					calculation(x, y) = 0;
+				}
+			}
+		}
+
+		//calculate premeter 
+		ImgBinary PremeterBin(component.Width(), component.Height());
+		
+		Erode3x3(calculation, &PremeterBin);
+		Xor(calculation, PremeterBin,&PremeterBin);
+		int premeter=0;
+		for (ImgBinary::Iterator p = PremeterBin.Begin(); p != PremeterBin.End(); p++)
+		{
+			if (1==*p)
+			{
+				premeter += 1;
+			}
+		}
+		
+		RegionProperties props;
+		RegionProps(calculation, &props);
+		float compactness = 4 * pi / props.area / (premeter ^ 2);
+		cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " << props.m10 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
+		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;
+		cout << "Perimeter = " << premeter << ", and area = " << props.area << ". Compactness = " << compactness << endl;
+		cout << "Eccentricity = " << props.eccentricity << endl;
+		cout << "Direction (clockwise from horizontal): " << props.direction << endl << endl;
+
+		//Apple =1 = Red, Banana =2 =Yellow, Grapefruit =3 =Green
+		if (props.eccentricity > 0.7)	
+		{
+			//Banana
+			Set(masked, PremeterBin, Bgr(0, 255, 255));
+
+
+		}
+		else if (props.area > 4500)	
+		{
+			//Grapefruit
+			Set(masked, PremeterBin, Bgr(0, 255, 0));
+
+		}
+		else
+		{
+			//Apple
+			Set(masked, PremeterBin, Bgr(0, 0, 255));
+
+		}
+
+
+		//CString str;
+		//str.Format("Properties of region:\r\n"
+		//	"  area (number of pixels):  %d\r\n"
+		//	"  centroid:  (%5.1f, %5.1f)\r\n"
+		//	"  major axis:  [%5.1f %5.1f]\r\n"
+		//	"  minor axis:  [%5.1f %5.1f]\r\n"
+		//	"  direction (clockwise from horizontal):  %5.1f radians\r\n"
+		//	"  eccentricity:  %5.1f\r\n"
+		//	"  moments:\r\n"
+		//	"    m00:  %11.1f\r\n"
+		//	"    m10:  %11.1f\r\n"
+		//	"    m01:  %11.1f\r\n"
+		//	"    m11:  %11.1f\r\n"
+		//	"    m20:  %11.1f\r\n"
+		//	"    m02:  %11.1f\r\n"
+		//	"  centralized moments:\r\n"
+		//	"    mu00:  %11.1f\r\n"
+		//	"    mu10:  %11.1f\r\n"
+		//	"    mu01:  %11.1f\r\n"
+		//	"    mu11:  %11.1f\r\n"
+		//	"    mu20:  %11.1f\r\n"
+		//	"    mu02:  %11.1f\r\n",
+		//	(int)props.area, 
+		//	props.xc, props.yc,
+		//	props.major_axis_x, props.major_axis_y,
+		//	props.minor_axis_x, props.minor_axis_y,
+		//	props.direction, props.eccentricity,
+		//	props.m00, props.m10, props.m01, props.m11, props.m20, props.m02,
+		//	props.mu00, props.mu10, props.mu01, props.mu11, props.mu20, props.mu02);
+		//cout << str;
+		//cout << "Premeter is " << premeter << endl;
+	}
+
+
+
+
+
+	//for (int i = 1; i < reg; i++)
+	//{
+	//	for (int y = 0; y < calculation.Height(); y++)
+	//	{
+	//		for (int x = 0; x < calculation.Width(); x++)
+	//		{
+	//			double m00 = m01 = m02 = 0;
+	//			m00 += calculation(x, y);
+	//		}
+	//	}
+	//}
+	//return m00;
+}
 
 //Main function
 int main(int argc, const char* argv[], const char* envp[])
@@ -100,7 +223,7 @@ int main(int argc, const char* argv[], const char* envp[])
 		//Initialization filenames
 		string location = "../../images/";
 		ImgGray origin, doublethreshold;
-		ImgInt label;
+
 
 		//check if the file name is correctly inputted
 		if (2 == argc)
@@ -138,9 +261,12 @@ int main(int argc, const char* argv[], const char* envp[])
 			OriF.Draw(origin);
 			DTF.Draw(doublethreshold);
 			
-			ConnectedComponent(doublethreshold, &label);
-			Figure CCF("Connected Component using ", 0, 900);
-			CCF.Draw(label);
+			ImgBgr Outlined;
+			Convert(origin, &Outlined);
+			RegionPro(origin, doublethreshold, &Outlined);
+
+			Figure OutlinedF("With fruits detected");
+			OutlinedF.Draw(Outlined);
 
 		}
 		else

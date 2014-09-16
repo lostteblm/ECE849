@@ -7,6 +7,7 @@
 #include "../../src/blepo.h"
 #include <io.h>
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -128,83 +129,83 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 		RegionProperties props;
 		RegionProps(calculation, &props);
 		float compactness = 4 * pi / props.area / (premeter ^ 2);
-		cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " << props.m10 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
+		cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " 
+			<< props.m10 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
 		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;
 		cout << "Perimeter = " << premeter << ", and area = " << props.area << ". Compactness = " << compactness << endl;
 		cout << "Eccentricity = " << props.eccentricity << endl;
 		cout << "Direction (clockwise from horizontal): " << props.direction << endl << endl;
 
+		//Centroid point
+		CPoint centroid;
+		centroid.x = long(props.xc);
+		centroid.y = long(props.yc);
+
+		CPoint major_start, major_end, minor_start,minor_end;
+		major_start.x = long(props.xc + props.major_axis_x);
+		major_start.y = long(props.yc + props.major_axis_y);
+		major_end.x = long(props.xc - props.major_axis_x);
+		major_end.y = long(props.yc - props.major_axis_y);
+
+		minor_start.x = long(props.xc + props.minor_axis_x);
+		minor_start.y = long(props.yc + props.minor_axis_y);
+		minor_end.x = long(props.xc - props.minor_axis_x);
+		minor_end.y = long(props.yc - props.minor_axis_y);
+
+
 		//Apple =1 = Red, Banana =2 =Yellow, Grapefruit =3 =Green
-		if (props.eccentricity > 0.7)	
+		if (props.eccentricity > 0.7&& props.area>1000)	
 		{
 			//Banana
-			Set(masked, PremeterBin, Bgr(0, 255, 255));
+			Set(masked, PremeterBin, Bgr(255, 0, 255));
 
+
+			DrawDot(centroid, masked, Bgr(0, 255, 255));
+
+			DrawLine(major_start, major_end, masked, Bgr(0, 0, 255));
+			DrawLine(minor_start, minor_end, masked, Bgr(0, 0, 255));
+
+			Erode3x3(calculation, &calculation);
+			Erode3x3(calculation, &calculation);
+			Erode3x3(calculation, &calculation);
+			Erode3x3(calculation, &calculation);
+
+
+			Dilate3x3(calculation, &calculation);
+			Dilate3x3(calculation, &calculation);
+			Dilate3x3(calculation, &calculation);
+			Dilate3x3(calculation, &calculation);
+
+
+			ImgBinary body(calculation.Width(),calculation.Height());
+			Erode3x3(calculation, &body);
+			Xor(calculation, body, &body);
+			And(body, PremeterBin, &body);
+			Set(masked, body, Bgr(0, 255, 255));
 
 		}
 		else if (props.area > 4500)	
 		{
 			//Grapefruit
 			Set(masked, PremeterBin, Bgr(0, 255, 0));
+			DrawDot(centroid, masked, Bgr(0, 255, 255));
+
+			DrawLine(major_start, major_end, masked, Bgr(0, 0, 255));
+			DrawLine(minor_start, minor_end, masked, Bgr(0, 0, 255));
 
 		}
-		else
+		else if (props.area>1000)
 		{
 			//Apple
 			Set(masked, PremeterBin, Bgr(0, 0, 255));
+			DrawDot(centroid, masked, Bgr(0, 255, 255));
+			DrawLine(major_start, major_end, masked, Bgr(0, 0, 255));
+			DrawLine(minor_start, minor_end, masked, Bgr(0, 0, 255));
 
 		}
-
-
-		//CString str;
-		//str.Format("Properties of region:\r\n"
-		//	"  area (number of pixels):  %d\r\n"
-		//	"  centroid:  (%5.1f, %5.1f)\r\n"
-		//	"  major axis:  [%5.1f %5.1f]\r\n"
-		//	"  minor axis:  [%5.1f %5.1f]\r\n"
-		//	"  direction (clockwise from horizontal):  %5.1f radians\r\n"
-		//	"  eccentricity:  %5.1f\r\n"
-		//	"  moments:\r\n"
-		//	"    m00:  %11.1f\r\n"
-		//	"    m10:  %11.1f\r\n"
-		//	"    m01:  %11.1f\r\n"
-		//	"    m11:  %11.1f\r\n"
-		//	"    m20:  %11.1f\r\n"
-		//	"    m02:  %11.1f\r\n"
-		//	"  centralized moments:\r\n"
-		//	"    mu00:  %11.1f\r\n"
-		//	"    mu10:  %11.1f\r\n"
-		//	"    mu01:  %11.1f\r\n"
-		//	"    mu11:  %11.1f\r\n"
-		//	"    mu20:  %11.1f\r\n"
-		//	"    mu02:  %11.1f\r\n",
-		//	(int)props.area, 
-		//	props.xc, props.yc,
-		//	props.major_axis_x, props.major_axis_y,
-		//	props.minor_axis_x, props.minor_axis_y,
-		//	props.direction, props.eccentricity,
-		//	props.m00, props.m10, props.m01, props.m11, props.m20, props.m02,
-		//	props.mu00, props.mu10, props.mu01, props.mu11, props.mu20, props.mu02);
-		//cout << str;
-		//cout << "Premeter is " << premeter << endl;
 	}
 
 
-
-
-
-	//for (int i = 1; i < reg; i++)
-	//{
-	//	for (int y = 0; y < calculation.Height(); y++)
-	//	{
-	//		for (int x = 0; x < calculation.Width(); x++)
-	//		{
-	//			double m00 = m01 = m02 = 0;
-	//			m00 += calculation(x, y);
-	//		}
-	//	}
-	//}
-	//return m00;
 }
 
 //Main function

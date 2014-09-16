@@ -76,6 +76,10 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 	Dilate3x3(*output, output);
 	Dilate3x3(*output, output);
 
+	Dilate3x3(*output, output);
+	Dilate3x3(*output, output);
+	Erode3x3(*output, output);
+	Erode3x3(*output, output);
 	Figure fig1("High threshold", 0, 400), fig2("Low threshold", 850, 400);
 	fig1.Draw(threshold_hi);
 	fig2.Draw(threshold_lo);

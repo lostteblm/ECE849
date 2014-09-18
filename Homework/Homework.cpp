@@ -6,7 +6,7 @@
 #include "Homework.h"
 #include "../../src/blepo.h"
 #include <io.h>
-
+#include <math.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -15,6 +15,34 @@
 #define pi 3.1415926
 using namespace blepo;
 using namespace std;
+
+int calculatePerimeter(const ImgBinary& input)
+{
+	int perimeter = 0;
+	int Nd = 0;
+	int No = 0;
+	for (int y = 0; y < input.Height(); y++)
+	{
+		for (int x = 0; x < input.Width(); x++)
+		{
+			if (1 == input(x, y))
+			{
+				if (1 == input(x - 1, y) || 1 == input(x + 1, y) || 1 == input(x, y - 1) || 1 == input(x, y + 1))
+				{
+					No = No + 1;
+				}
+				else if (1 == input(x - 1, y + 1) || 1 == input(x + 1, y + 1) || 1 == input(x - 1, y - 1) || 1 == input(x + 1, y - 1))
+				{
+					Nd = Nd + 1;
+				}
+			}
+		}
+	}
+	perimeter = sqrt(pow(Nd,2) + pow((Nd + No / 2),2)) + No / 2;
+	return perimeter;
+}
+
+
 
 void DoubleThresholding(const ImgGray& input, ImgGray* output)
 {
@@ -121,28 +149,57 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 			index++;
 		}
 	
-
-		//calculate premeter 
-		ImgBinary PremeterBin(component.Width(), component.Height());
-		
-		Erode3x3(calculation, &PremeterBin);
-		Xor(calculation, PremeterBin,&PremeterBin);
-		int premeter=0;
-		for (ImgBinary::Iterator p = PremeterBin.Begin(); p != PremeterBin.End(); p++)
+		//calculate moments
+		int m00, m01, m10, m11, m02, m20;	//regular moment
+		int mu00, mu01, mu10, mu11, mu02, mu20;	//central moment
+		m00 = m01 = m10 = m11 = m02 = m20 = mu00 = mu10 = mu01 = mu11= mu20 = mu02 = 0;
+		for (int y = 0; y < calculation.Height(); y++)
 		{
-			if (1==*p)
+			for (int x = 0; x < calculation.Width(); x++)
 			{
-				premeter += 1;
+				m00 = m00 + calculation(x,y);
+				m01 = m01 + y*calculation(x, y);
+				m10 = m10 + x*calculation(x, y);
+				m11 = m11 + x*y*calculation(x, y);
+				m02 = m02 + pow(y, 2)*calculation(x, y);
+				m20 = m20 + pow(x, 2)*calculation(x, y);
 			}
 		}
+
+		int Xc = m10 / m00;
+		int Yc = m01 / m00;
+
+		mu00 = m00;
+		mu01 = 0;
+		mu10 = 0;
+		mu11 = m11 - Yc*m10;
+		mu02 = m02-Yc*m01;
+		mu20 = m20 - Xc*m10;
+
+
+
+
+		//calculate premeter 
+		ImgBinary PerimeterBin(component.Width(), component.Height());
 		
+		Erode3x3Cross(calculation, &PerimeterBin);
+		Xor(calculation, PerimeterBin, &PerimeterBin);
+
+		int perimeter = calculatePerimeter(PerimeterBin);
+		
+
 		RegionProperties props;
 		RegionProps(calculation, &props);
-		float compactness = 4 * pi / props.area / (premeter ^ 2);
-		cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " 
+		float compactness = 4 * pi / props.area / (perimeter ^ 2);
+		cout << "Regular moments: \n m00 = " << m00 << ", m01 =  " << m01 << ", m10 = "
+			<< m10 << ", m02 = " << m02 << ", m20 = " << m20 << endl;
+		cout << "Centralized moments: \n mu00 = " << mu00 << ", mu01 =  " << mu01 << ", mu10 = " 
+			<< mu10 << ", mu02 = " << mu02 << ", mu20 = " << mu20 << endl;
+
+		/*cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " 
 			<< props.m10 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
-		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;
-		cout << "Perimeter = " << premeter << ", and area = " << props.area << ". Compactness = " << compactness << endl;
+		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;*/
+		cout << "Perimeter = " << perimeter << ", and area = " << props.area << ". Compactness = " << compactness << endl;
 		cout << "Eccentricity = " << props.eccentricity << endl;
 		cout << "Direction (clockwise from horizontal): " << props.direction << endl << endl;
 
@@ -167,7 +224,7 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 		if (props.eccentricity > 0.7&& props.area>1000)	
 		{
 			//Banana
-			Set(masked, PremeterBin, Bgr(255, 0, 255));
+			Set(masked, PerimeterBin, Bgr(255, 0, 255));
 
 
 			DrawDot(centroid, masked, Bgr(0, 255, 255));
@@ -190,14 +247,14 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 			ImgBinary body(calculation.Width(),calculation.Height());
 			Erode3x3(calculation, &body);
 			Xor(calculation, body, &body);
-			And(body, PremeterBin, &body);
+			And(body, PerimeterBin, &body);
 			Set(masked, body, Bgr(0, 255, 255));
 
 		}
 		else if (props.area > 4500)	
 		{
 			//Grapefruit
-			Set(masked, PremeterBin, Bgr(0, 255, 0));
+			Set(masked, PerimeterBin, Bgr(0, 255, 0));
 			DrawDot(centroid, masked, Bgr(0, 255, 255));
 
 			DrawLine(major_start, major_end, masked, Bgr(0, 0, 255));
@@ -207,7 +264,7 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 		else if (props.area>1000)
 		{
 			//Apple
-			Set(masked, PremeterBin, Bgr(0, 0, 255));
+			Set(masked, PerimeterBin, Bgr(0, 0, 255));
 			DrawDot(centroid, masked, Bgr(0, 255, 255));
 			DrawLine(major_start, major_end, masked, Bgr(0, 0, 255));
 			DrawLine(minor_start, minor_end, masked, Bgr(0, 0, 255));

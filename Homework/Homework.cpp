@@ -150,9 +150,8 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 		}
 	
 		//calculate moments
-		int m00, m01, m10, m11, m02, m20;	//regular moment
-		int mu00, mu01, mu10, mu11, mu02, mu20;	//central moment
-		m00 = m01 = m10 = m11 = m02 = m20 = mu00 = mu10 = mu01 = mu11= mu20 = mu02 = 0;
+		int m00, m01, m10, m11, m02,m20;	//regular moment
+		m00 = m01 = m10 = m11 = m02=m20=0;
 		for (int y = 0; y < calculation.Height(); y++)
 		{
 			for (int x = 0; x < calculation.Width(); x++)
@@ -169,16 +168,6 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 		int Xc = m10 / m00;
 		int Yc = m01 / m00;
 
-		mu00 = m00;
-		mu01 = 0;
-		mu10 = 0;
-		mu11 = m11 - Yc*m10;
-		mu02 = m02-Yc*m01;
-		mu20 = m20 - Xc*m10;
-
-
-
-
 		//calculate premeter 
 		ImgBinary PerimeterBin(component.Width(), component.Height());
 		
@@ -190,34 +179,30 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 
 		RegionProperties props;
 		RegionProps(calculation, &props);
-		float compactness = 4 * pi / props.area / (perimeter ^ 2);
-		cout << "Regular moments: \n m00 = " << m00 << ", m01 =  " << m01 << ", m10 = "
-			<< m10 << ", m02 = " << m02 << ", m20 = " << m20 << endl;
-		cout << "Centralized moments: \n mu00 = " << mu00 << ", mu01 =  " << mu01 << ", mu10 = " 
-			<< mu10 << ", mu02 = " << mu02 << ", mu20 = " << mu20 << endl;
+		double compactness = 4 * pi / m00 / (perimeter ^ 2);
 
-		/*cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " 
-			<< props.m10 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
-		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;*/
-		cout << "Perimeter = " << perimeter << ", and area = " << props.area << ". Compactness = " << compactness << endl;
+		cout << "Regular moments: \n m00 = " << props.m00 << ", m01 =  " << props.m01 << ", m10 = " << props.m10 
+			<< ", m11 = " << props.m11 << ", m02 = " << props.m02 << ", m20 = " << props.m20 << endl;
+		cout << "Centralized moments: \n mu00 = " << props.mu00 << ", mu01 =  " << props.mu01 << ", mu10 = " << props.mu10 
+			<< ", mu11 = " << props.mu11 << ", mu02 = " << props.mu02 << ", mu20 = " << props.mu20 << endl;
+
+		cout << "Perimeter = " << perimeter << ", and area = " << m00 << ". Compactness = " << compactness << endl;
 		cout << "Eccentricity = " << props.eccentricity << endl;
 		cout << "Direction (clockwise from horizontal): " << props.direction << endl << endl;
 
 		//Centroid point
-		CPoint centroid;
-		centroid.x = long(props.xc);
-		centroid.y = long(props.yc);
+		CPoint centroid(Xc,Yc);
 
 		CPoint major_start, major_end, minor_start,minor_end;
-		major_start.x = long(props.xc + props.major_axis_x);
-		major_start.y = long(props.yc + props.major_axis_y);
-		major_end.x = long(props.xc - props.major_axis_x);
-		major_end.y = long(props.yc - props.major_axis_y);
+		major_start.x = long(Xc + props.major_axis_x);
+		major_start.y = long(Yc + props.major_axis_y);
+		major_end.x = long(Xc - props.major_axis_x);
+		major_end.y = long(Yc - props.major_axis_y);
 
-		minor_start.x = long(props.xc + props.minor_axis_x);
-		minor_start.y = long(props.yc + props.minor_axis_y);
-		minor_end.x = long(props.xc - props.minor_axis_x);
-		minor_end.y = long(props.yc - props.minor_axis_y);
+		minor_start.x = long(Xc + props.minor_axis_x);
+		minor_start.y = long(Yc + props.minor_axis_y);
+		minor_end.x = long(Xc - props.minor_axis_x);
+		minor_end.y = long(Yc - props.minor_axis_y);
 
 
 		//Apple =1 = Red, Banana =2 =Yellow, Grapefruit =3 =Green

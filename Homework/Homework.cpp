@@ -19,13 +19,13 @@ using namespace std;
 void DoubleThresholding(const ImgGray& input, ImgGray* output)
 {
 	ImgGray  threshold_hi, threshold_lo;
-	int high = 150;
+	int high = 160;
 	int low = 85;
 	threshold_hi.Reset(input.Width(), input.Height());
 	threshold_lo.Reset(input.Width(), input.Height());
 
 	int count = 0;
-	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++)
+	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++, count++)
 	{
 		ImgGray::Iterator p_hi = threshold_hi.Begin();
 		if (*p<high)
@@ -36,13 +36,16 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 		{
 			*(p_hi + count) = 255;
 		}
-		count = count + 1;
+
 	}
 	Erode3x3(threshold_hi, &threshold_hi);
 
+
+
 	count = 0;
-	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++)
+	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++, count++)
 	{
+
 		ImgGray::Iterator p_low = threshold_lo.Begin();
 		if (*p<low)
 		{
@@ -52,8 +55,11 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 		{
 			*(p_low + count) = 255;
 		}
-		count = count + 1;
 	}
+
+	Figure fig1("High threshold", 0, 400), fig2("Low threshold", 850, 400);
+	fig1.Draw(threshold_hi);
+	fig2.Draw(threshold_lo);
 
 	output->Reset(input.Width(), input.Height());
 	for (ImgGray::Iterator p = output->Begin(); p != output->End(); p++)
@@ -61,35 +67,36 @@ void DoubleThresholding(const ImgGray& input, ImgGray* output)
 		*p = 0;
 	}
 
-	for (int y = 0; y < threshold_lo.Height(); y++)
+
+	for (int y = 0; y < threshold_hi.Height(); y++)
 	{
-		for (int x = 0; x < threshold_lo.Width(); x++)
+		for (int x = 0; x < threshold_hi.Width(); x++)
 		{
 			if (255 == threshold_hi(x, y))
+			{
 				FloodFill4(threshold_lo, x, y, 255, output);
+				FloodFill4(threshold_hi, x, y, 0, &threshold_hi);
+			}				
 		}
 	}
 
 	Erode3x3(*output, output);
-	//Dilate3x3(*output, output);
 	Erode3x3(*output, output);
 	Dilate3x3(*output, output);
 	Dilate3x3(*output, output);
 
 	Dilate3x3(*output, output);
-	Dilate3x3(*output, output);
+	Dilate3x3Cross(*output, output);
+	Erode3x3Cross(*output, output);
 	Erode3x3(*output, output);
-	Erode3x3(*output, output);
-	Figure fig1("High threshold", 0, 400), fig2("Low threshold", 850, 400);
-	fig1.Draw(threshold_hi);
-	fig2.Draw(threshold_lo);
+
 }
 
 void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 {
 	ImgInt label;
 	
-	std::vector< ConnectedComponentProperties<ImgGray::Pixel>> reg;  		// pixel type must match input image type
+	std::vector< ConnectedComponentProperties<ImgGray::Pixel>> reg;  	
 	ConnectedComponents4(component, &label, &reg);
 	Figure CCF("Connected Component", 0, 300);
 	CCF.Draw(label);
@@ -99,22 +106,21 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 
 	for (int i = 1; i < reg.size(); i++)
 	{
+		int index = 0;
 		cout << "The region properties of region " << i << " is listed below." << endl;
-
-		for (int y = 0; y < calculation.Height(); y++)
+		for (ImgInt::ConstIterator p = label.Begin(); p != label.End(); p++)
 		{
-			for (int x = 0; x < calculation.Width(); x++)
+			if (i == *p)
 			{
-				if (i == label(x, y))
-				{
-					calculation(x, y) = 1;
-				}
-				else
-				{
-					calculation(x, y) = 0;
-				}
+				calculation(index)=1;
 			}
+			else
+			{
+				calculation(index) = 0;
+			}
+			index++;
 		}
+	
 
 		//calculate premeter 
 		ImgBinary PremeterBin(component.Width(), component.Height());
@@ -208,8 +214,6 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 
 		}
 	}
-
-
 }
 
 //Main function
@@ -259,11 +263,14 @@ int main(int argc, const char* argv[], const char* envp[])
 				location1 = location + filename;
 			}
 
+
+
+			Figure OriF("Original", 0, 0);
+			OriF.Draw(origin);
 			//Perform double thresholding
 			DoubleThresholding(origin, &doublethreshold);
 
-			Figure OriF("Original", 0, 0), DTF("Double threshold", 850, 0);
-			OriF.Draw(origin);
+			Figure DTF("Double threshold", 850, 0);
 			DTF.Draw(doublethreshold);
 			
 			ImgBgr Outlined;

@@ -16,115 +16,46 @@
 using namespace blepo;
 using namespace std;
 
-//Calculate outline perimeter
-int calculatePerimeter(const ImgBinary& input)
+//create a Gaussian Kernel
+void GKernel(const float& sigma,double* GKernel)
 {
-	int perimeter = 0;
-	int Nd = 0;	//number of Nd
-	int No = 0;	//number of No
-	for (int y = 0; y < input.Height(); y++)
+	float f = 2.5;
+	int mu = round(f*sigma - 0.5);
+	int w = 2 * mu + 1;
+	double *g=new double[w];
+	double sum = 0;
+	for (int i = 0; i < w; i++)
 	{
-		for (int x = 0; x < input.Width(); x++)
-		{
-			if (1 == input(x, y))
-			{	//if a pixel has 4-neighbors
-				if (1 == input(x - 1, y) || 1 == input(x + 1, y) || 1 == input(x, y - 1) || 1 == input(x, y + 1))
-				{
-					No = No + 1;
-				}	
-					//if a pixel only have diagonal neighbors
-				else if (1 == input(x - 1, y + 1) || 1 == input(x + 1, y + 1) || 1 == input(x - 1, y - 1) || 1 == input(x + 1, y - 1))
-				{
-					Nd = Nd + 1;
-				}
-			}
-		}
+		g[i] = exp(-(i - mu)*(i - mu) / (2 * sigma*sigma));
+		sum += g[i];
 	}
-	//Kimura's method
-	perimeter = sqrt(pow(Nd,2) + pow((Nd + No / 2),2)) + No / 2;
-	return perimeter;
+	for (int i = 0; i < w; i++)
+	{
+		g[i] = g[i] / sum;
+	}
+	GKernel = g;
 }
 
 //double threshold
-void DoubleThresholding(const ImgGray& input, ImgGray* output)
+void GDKernel(const float& sigma, double* GDKernel)
 {
-	ImgGray  threshold_hi, threshold_lo;
-	int high = 160;
-	int low = 85;
-	threshold_hi.Reset(input.Width(), input.Height());
-	threshold_lo.Reset(input.Width(), input.Height());
-	int count = 0;
-	
-	//High threshold 
-	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++, count++)
+	float f = 2.5;
+	int mu = round(f*sigma - 0.5);
+	int w = 2 * mu + 1;
+	double *gd = new double[w];
+	double sum = 0;
+	for (int i = 0; i < w; i++)
 	{
-		ImgGray::Iterator p_hi = threshold_hi.Begin();
-		if (*p<high)
-		{
-			*(p_hi + count) = 0;
-		}
-		else
-		{
-			*(p_hi + count) = 255;
-		}
-
+		gd[i] = (i-mu)*exp(-(i - mu)*(i - mu) / (2 * sigma*sigma));
+		sum += gd[i]*i;
 	}
-	Erode3x3(threshold_hi, &threshold_hi);	//remove some noises
-
-
-	//Low threshold
-	count = 0;
-	for (ImgGray::ConstIterator p = input.Begin(); p != input.End(); p++, count++)
+	for (int i = 0; i < w; i++)
 	{
-
-		ImgGray::Iterator p_low = threshold_lo.Begin();
-		if (*p<low)
-		{
-			*(p_low + count) = 0;
-		}
-		else
-		{
-			*(p_low + count) = 255;
-		}
+		gd[i] = gd[i] / sum;
 	}
-
-	//display both high thresholded and low thresholded pictures
-	Figure fig1("High threshold", 0, 400), fig2("Low threshold", 850, 400);
-	fig1.Draw(threshold_hi);
-	fig2.Draw(threshold_lo);
-
-	//initialize double-thresholded image
-	output->Reset(input.Width(), input.Height());
-	for (ImgGray::Iterator p = output->Begin(); p != output->End(); p++)
-	{
-		*p = 0;
-	}
-
-	//double-threshold
-	for (int y = 0; y < threshold_hi.Height(); y++)
-	{
-		for (int x = 0; x < threshold_hi.Width(); x++)
-		{
-			if (255 == threshold_hi(x, y))
-			{
-				FloodFill4(threshold_lo, x, y, 255, output);
-				FloodFill4(threshold_hi, x, y, 0, &threshold_hi);
-			}				
-		}
-	}
-
-	//remove image noises
-	Erode3x3(*output, output);
-	Erode3x3(*output, output);
-	Dilate3x3(*output, output);
-	Dilate3x3(*output, output);
-
-	Dilate3x3(*output, output);
-	Dilate3x3Cross(*output, output);
-	Erode3x3Cross(*output, output);
-	Erode3x3(*output, output);
-
+	GDKernel = gd;
 }
+
 
 //Region properties and fruit classificiation
 void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)

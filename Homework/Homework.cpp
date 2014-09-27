@@ -1,5 +1,5 @@
 // Heyu Liu- C15622730
-//Assignment-1
+//Assignment-3
 
 #include <afxwin.h>  // necessary for MFC to work properly
 #include <iostream>
@@ -233,6 +233,8 @@ void RegionPro(const ImgGray&origin, const ImgGray& component, ImgBgr* masked)
 			Erode3x3(calculation, &calculation);
 			Erode3x3(calculation, &calculation);
 			Erode3x3(calculation, &calculation);
+			Erode3x3Cross(calculation, &calculation);
+			Dilate3x3Cross(calculation, &calculation);
 			Dilate3x3(calculation, &calculation);
 			Dilate3x3(calculation, &calculation);
 			Dilate3x3(calculation, &calculation);
@@ -324,9 +326,9 @@ int main(int argc, const char* argv[], const char* envp[])
 		else
 		{
 			//Failed to input three file names
-			cout << "Please press Ctrl+C to quit program and reinput three files" << endl;
+			cout << "Please press Ctrl+C to quit program and reinput another file" << endl;
 		}
-		cout << "Mask process finished, you can press Ctrl+C to quit the program" << endl;
+		cout << "Image processing finished, you can press Ctrl+C to quit the program" << endl;
 		EventLoop();
 	}
 
